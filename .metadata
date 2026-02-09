@@ -1,0 +1,21 @@
+# This file tracks properties of this Flutter project.
+# Used by Flutter tool to assess capabilities and perform upgrades etc.
+#
+# This file should be version controlled and should not be manually edited.
+
+version:
+  revision: "9944297386dd8fef91af76cc8e0b2d86a6b84a41"
+  channel: "stable"
+
+project_type: app
+
+# Tracks metadata associated with Flutter desktop projects.
+# Currently, the only desktop platform supported is linux.
+#
+# This metadata is for tooling only and will be ignored by the build system.
+windows:
+  enabled: false
+macos:
+  enabled: false
+linux:
+  enabled: false
