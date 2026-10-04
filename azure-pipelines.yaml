@@ -1,0 +1,142 @@
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    exclude:
+      - README.md
+      - docs/*
+      - '*.md'
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  buildConfiguration: 'release'
+  flutterVersion: '3.x'
+  flutterChannel: 'stable'
+
+stages:
+  - stage: Build
+    displayName: 'Build & Test Stage'
+    jobs:
+      - job: BuildAndroid
+        displayName: 'Build Android (APK)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: FlutterInstall@0
+            displayName: 'Install Flutter SDK'
+            inputs:
+              channel: $(flutterChannel)
+              version: $(flutterVersion)
+
+          - task: FlutterBuild@0
+            displayName: 'Get Flutter Dependencies'
+            inputs:
+              target: 'generic'
+              projectDirectory: '.'
+              buildName: 'pub-get'
+
+          - script: |
+              flutter analyze
+            displayName: 'Run Flutter Analyzer'
+            continueOnError: true
+
+          - script: |
+              flutter test --coverage
+            displayName: 'Run Widget Tests'
+            continueOnError: true
+
+          - task: FlutterBuild@0
+            displayName: 'Build APK (Release)'
+            inputs:
+              target: 'apk'
+              projectDirectory: '.'
+              buildName: 'apk-release'
+              extraArguments: '--release'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish APK Artifact'
+            condition: succeeded()
+            inputs:
+              PathtoPublish: 'build/app/outputs/flutter-apk/'
+              ArtifactName: 'calculadora-apk-$(Build.BuildId)'
+              publishLocation: 'Container'
+
+          - task: PublishCodeCoverageResults@1
+            displayName: 'Publish Code Coverage'
+            condition: succeededOrFailed()
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/lcov.info'
+              failIfCoverageEmpty: false
+              reportDirectory: '$(System.DefaultWorkingDirectory)/coverage/html'
+
+      - job: BuildWindows
+        displayName: 'Build Windows'
+        pool:
+          vmImage: 'windows-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: FlutterInstall@0
+            displayName: 'Install Flutter SDK'
+            inputs:
+              channel: $(flutterChannel)
+              version: $(flutterVersion)
+
+          - task: FlutterBuild@0
+            displayName: 'Get Flutter Dependencies'
+            inputs:
+              target: 'generic'
+              projectDirectory: '.'
+              buildName: 'pub-get'
+
+          - script: |
+              flutter analyze
+            displayName: 'Run Flutter Analyzer'
+            continueOnError: true
+
+          - task: FlutterBuild@0
+            displayName: 'Build Windows (Release)'
+            inputs:
+              target: 'windows'
+              projectDirectory: '.'
+              buildName: 'windows-release'
+              extraArguments: '--release'
+
+          - task: PublishBuildArtifacts@1
+            displayName: 'Publish Windows Artifact'
+            condition: succeeded()
+            inputs:
+              PathtoPublish: 'build/windows/x64/runner/Release/'
+              ArtifactName: 'calculadora-windows-$(Build.BuildId)'
+              publishLocation: 'Container'
+
+  - stage: Publish
+    displayName: 'Publish Artifacts'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - job: PublishSummary
+        displayName: 'Publish Build Summary'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - script: |
+              echo "##[group]Build Summary"
+              echo "Android APK: build/app/outputs/flutter-apk/app-release.apk"
+              echo "Windows: build/windows/x64/runner/Release/"
+              echo "Build ID: $(Build.BuildId)"
+              echo "Branch: $(Build.SourceBranch)"
+              echo "##[endgroup]"
+            displayName: 'Display Artifact Summary'
