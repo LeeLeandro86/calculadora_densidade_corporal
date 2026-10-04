@@ -46,15 +46,15 @@ stages:
 
           - bash: |
               export PATH="$HOME/flutter/bin:$PATH"
-              echo "🔧 Generating Android platform files if needed..."
-              if [ ! -d "android" ]; then
-                echo "Android folder not found, generating..."
-                flutter create . --platforms android
-              else
-                echo "Android folder exists, skipping generation..."
-              fi
-            displayName: 'Setup Android Platform'
-            continueOnError: true
+              echo "🧹 Cleaning previous builds..."
+              flutter clean
+            displayName: 'Clean Flutter Build'
+
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
+              echo "🔧 Generating Android platform files..."
+              flutter create . --platforms android --project-name calculadora_densidade_corporal --overwrite
+            displayName: 'Regenerate Android Platform'
 
           - bash: |
               export PATH="$HOME/flutter/bin:$PATH"
@@ -73,7 +73,7 @@ stages:
           - bash: |
               export PATH="$HOME/flutter/bin:$PATH"
               echo "🔨 Building APK Release..."
-              flutter build apk --release
+              flutter build apk --release --verbose
             displayName: 'Build APK (Release)'
 
           - task: PublishBuildArtifacts@1

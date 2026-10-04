@@ -25,6 +25,8 @@ DerivedData/
 /.idea/
 /local.properties
 android/.gradle/
+/android/
+android/app/build/
 
 # VS Code
 .vscode/
