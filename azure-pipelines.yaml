@@ -80,48 +80,7 @@ stages:
               summaryFileLocation: '$(Build.SourcesDirectory)/coverage/lcov.info'
               failIfCoverageEmpty: false
 
-      - job: BuildWindows
-        displayName: 'Build Windows'
-        pool:
-          vmImage: 'windows-latest'
-        steps:
-          - checkout: self
-            fetchDepth: 0
 
-          - powershell: |
-              echo "📥 Downloading Flutter SDK..."
-              git clone https://github.com/flutter/flutter.git --branch stable --depth 1 $env:USERPROFILE\flutter
-              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
-              flutter --version
-              flutter doctor -v
-            displayName: 'Install Flutter SDK'
-
-          - powershell: |
-              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
-              echo "📦 Getting dependencies..."
-              flutter pub get
-            displayName: 'Get Flutter Dependencies'
-
-          - powershell: |
-              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
-              echo "🔍 Running analyzer..."
-              flutter analyze
-            displayName: 'Run Flutter Analyzer'
-            continueOnError: true
-
-          - powershell: |
-              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
-              echo "🔨 Building Windows Release..."
-              flutter build windows --release
-            displayName: 'Build Windows (Release)'
-
-          - task: PublishBuildArtifacts@1
-            displayName: 'Publish Windows Artifact'
-            condition: succeeded()
-            inputs:
-              PathtoPublish: '$(Build.SourcesDirectory)/build/windows/x64/runner/Release/'
-              ArtifactName: 'calculadora-windows-$(Build.BuildId)'
-              publishLocation: 'Container'
 
   - stage: Summary
     displayName: 'Build Summary'
@@ -136,7 +95,6 @@ stages:
           - bash: |
               echo "##[group]✅ BUILD SUMMARY"
               echo "📱 Android APK: calculadora-apk-$(Build.BuildId)"
-              echo "🖥️ Windows App: calculadora-windows-$(Build.BuildId)"
               echo "Build ID: $(Build.BuildId)"
               echo "Branch: $(Build.SourceBranch)"
               echo "Status: SUCCESS ✅"
