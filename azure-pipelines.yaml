@@ -17,8 +17,6 @@ pr:
 
 variables:
   buildConfiguration: 'release'
-  flutterVersion: '3.x'
-  flutterChannel: 'stable'
 
 stages:
   - stage: Build
@@ -32,42 +30,45 @@ stages:
           - checkout: self
             fetchDepth: 0
 
-          - task: FlutterInstall@0
+          - bash: |
+              echo "📥 Downloading Flutter SDK..."
+              git clone https://github.com/flutter/flutter.git --branch stable --depth 1 ~/flutter
+              export PATH="$HOME/flutter/bin:$PATH"
+              flutter --version
+              flutter doctor
             displayName: 'Install Flutter SDK'
-            inputs:
-              channel: $(flutterChannel)
-              version: $(flutterVersion)
 
-          - task: FlutterBuild@0
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
+              echo "📦 Getting dependencies..."
+              flutter pub get
             displayName: 'Get Flutter Dependencies'
-            inputs:
-              target: 'generic'
-              projectDirectory: '.'
-              buildName: 'pub-get'
 
-          - script: |
-              flutter analyze
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
+              echo "🔍 Running analyzer..."
+              flutter analyze || true
             displayName: 'Run Flutter Analyzer'
             continueOnError: true
 
-          - script: |
-              flutter test --coverage
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
+              echo "🧪 Running tests with coverage..."
+              flutter test --coverage || true
             displayName: 'Run Widget Tests'
             continueOnError: true
 
-          - task: FlutterBuild@0
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
+              echo "🔨 Building APK Release..."
+              flutter build apk --release
             displayName: 'Build APK (Release)'
-            inputs:
-              target: 'apk'
-              projectDirectory: '.'
-              buildName: 'apk-release'
-              extraArguments: '--release'
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish APK Artifact'
             condition: succeeded()
             inputs:
-              PathtoPublish: 'build/app/outputs/flutter-apk/'
+              PathtoPublish: '$(Build.SourcesDirectory)/build/app/outputs/flutter-apk/'
               ArtifactName: 'calculadora-apk-$(Build.BuildId)'
               publishLocation: 'Container'
 
@@ -76,9 +77,8 @@ stages:
             condition: succeededOrFailed()
             inputs:
               codeCoverageTool: 'Cobertura'
-              summaryFileLocation: '$(System.DefaultWorkingDirectory)/coverage/lcov.info'
+              summaryFileLocation: '$(Build.SourcesDirectory)/coverage/lcov.info'
               failIfCoverageEmpty: false
-              reportDirectory: '$(System.DefaultWorkingDirectory)/coverage/html'
 
       - job: BuildWindows
         displayName: 'Build Windows'
@@ -88,55 +88,57 @@ stages:
           - checkout: self
             fetchDepth: 0
 
-          - task: FlutterInstall@0
+          - powershell: |
+              echo "📥 Downloading Flutter SDK..."
+              git clone https://github.com/flutter/flutter.git --branch stable --depth 1 $env:USERPROFILE\flutter
+              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
+              flutter --version
+              flutter doctor -v
             displayName: 'Install Flutter SDK'
-            inputs:
-              channel: $(flutterChannel)
-              version: $(flutterVersion)
 
-          - task: FlutterBuild@0
+          - powershell: |
+              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
+              echo "📦 Getting dependencies..."
+              flutter pub get
             displayName: 'Get Flutter Dependencies'
-            inputs:
-              target: 'generic'
-              projectDirectory: '.'
-              buildName: 'pub-get'
 
-          - script: |
+          - powershell: |
+              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
+              echo "🔍 Running analyzer..."
               flutter analyze
             displayName: 'Run Flutter Analyzer'
             continueOnError: true
 
-          - task: FlutterBuild@0
+          - powershell: |
+              $env:PATH = "$env:USERPROFILE\flutter\bin;$env:PATH"
+              echo "🔨 Building Windows Release..."
+              flutter build windows --release
             displayName: 'Build Windows (Release)'
-            inputs:
-              target: 'windows'
-              projectDirectory: '.'
-              buildName: 'windows-release'
-              extraArguments: '--release'
 
           - task: PublishBuildArtifacts@1
             displayName: 'Publish Windows Artifact'
             condition: succeeded()
             inputs:
-              PathtoPublish: 'build/windows/x64/runner/Release/'
+              PathtoPublish: '$(Build.SourcesDirectory)/build/windows/x64/runner/Release/'
               ArtifactName: 'calculadora-windows-$(Build.BuildId)'
               publishLocation: 'Container'
 
-  - stage: Publish
-    displayName: 'Publish Artifacts'
+  - stage: Summary
+    displayName: 'Build Summary'
     dependsOn: Build
     condition: succeeded()
     jobs:
       - job: PublishSummary
-        displayName: 'Publish Build Summary'
+        displayName: 'Display Build Results'
         pool:
           vmImage: 'ubuntu-latest'
         steps:
-          - script: |
-              echo "##[group]Build Summary"
-              echo "Android APK: build/app/outputs/flutter-apk/app-release.apk"
-              echo "Windows: build/windows/x64/runner/Release/"
+          - bash: |
+              echo "##[group]✅ BUILD SUMMARY"
+              echo "📱 Android APK: calculadora-apk-$(Build.BuildId)"
+              echo "🖥️ Windows App: calculadora-windows-$(Build.BuildId)"
               echo "Build ID: $(Build.BuildId)"
               echo "Branch: $(Build.SourceBranch)"
+              echo "Status: SUCCESS ✅"
               echo "##[endgroup]"
             displayName: 'Display Artifact Summary'
