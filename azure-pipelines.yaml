@@ -46,6 +46,18 @@ stages:
 
           - bash: |
               export PATH="$HOME/flutter/bin:$PATH"
+              echo "🔧 Generating Android platform files if needed..."
+              if [ ! -d "android" ]; then
+                echo "Android folder not found, generating..."
+                flutter create . --platforms android
+              else
+                echo "Android folder exists, skipping generation..."
+              fi
+            displayName: 'Setup Android Platform'
+            continueOnError: true
+
+          - bash: |
+              export PATH="$HOME/flutter/bin:$PATH"
               echo "🔍 Running analyzer..."
               flutter analyze || true
             displayName: 'Run Flutter Analyzer'
