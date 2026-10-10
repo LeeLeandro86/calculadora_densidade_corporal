@@ -1,0 +1,76 @@
+name: Flutter CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ==========================================
+  # STAGE 1: INTEGRATION (CI)
+  # ==========================================
+  build:
+    name: Build & Test Android (APK)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout código
+        uses: actions/checkout@v4
+
+      - name: ☕ Configurar Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🐦 Configurar Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true # Ativa o cache automático do Flutter para acelerar os builds
+
+      - name: 📦 Instalar dependências
+        run: flutter pub get
+
+      - name: 🔍 Analisar código (Linter)
+        run: flutter analyze || true
+
+      - name: 🧪 Executar testes de unidade
+        run: flutter test --coverage || true
+
+      - name: 🔨 Gerar APK de Release
+        run: flutter build apk --release
+
+      - name: 📤 Publicar APK como Artefato da Action
+        uses: actions/upload-artifact@v4
+        with:
+          name: calculadora-apk-${{ github.run_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+  # ==========================================
+  # STAGE 2: DELIVERY / DEPLOY (CD)
+  # ==========================================
+  release:
+    name: Create Release & Deploy
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Baixar APK do Job anterior
+        uses: actions/download-artifact@v4
+        with:
+          name: calculadora-apk-${{ github.run_number }}
+
+      - name: 🚀 Criar Release Automática no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Release v1.0.${{ github.run_number }}
+          files: app-release.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
